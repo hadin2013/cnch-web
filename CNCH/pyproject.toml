@@ -1,0 +1,15 @@
+[project]
+name = "cnch"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "django>=5.0,<6.0",
+    "djangorestframework>=3.15",
+    "djangorestframework-simplejwt>=5.5.1",
+    "python-decouple==3.8",
+    "rest-framework-simplejwt>=0.0.2",
+    "gunicorn>=23.0.0",
+    "whitenoise>=6.8.0",
+]

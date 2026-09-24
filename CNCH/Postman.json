@@ -1,0 +1,98 @@
+{
+  "info": {
+    "name": "School Group & Students API",
+    "description": "Postman collection for School Group and Student APIs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000/user"
+    },
+    {
+      "key": "group_id",
+      "value": "1"
+    },
+    {
+      "key": "student_id",
+      "value": "1"
+    }
+  ],
+  "item": [
+    {
+      "name": "Create School Group",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"group_name\": \"گروه نخبگان\",\n  \"province\": \"تهران\",\n  \"city\": \"تهران\",\n  \"school_name\": \"دبیرستان نمونه\",\n  \"school_phone\": \"02112345678\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/groups/",
+          "host": ["{{base_url}}"],
+          "path": ["groups", ""]
+        }
+      }
+    },
+    {
+      "name": "Create Student",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"school_group\": {{group_id}},\n  \"first_name\": \"علی\",\n  \"last_name\": \"احمدی\",\n  \"national_id\": \"1234567890\",\n  \"phone_number\": \"09123456789\",\n  \"grade\": \"دهم\",\n  \"major\": \"ریاضی\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/students/",
+          "host": ["{{base_url}}"],
+          "path": ["students", ""]
+        }
+      }
+    },
+    {
+      "name": "Update Student (PATCH)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phone_number\": \"09120000000\",\n  \"grade\": \"یازدهم\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/students/{{student_id}}/",
+          "host": ["{{base_url}}"],
+          "path": ["students", "{{student_id}}", ""]
+        }
+      }
+    },
+    {
+      "name": "Group Dashboard",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/groups/{{group_id}}/",
+          "host": ["{{base_url}}"],
+          "path": ["groups", "{{group_id}}", "dashboard", ""]
+        }
+      }
+    }
+  ]
+}

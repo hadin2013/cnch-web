@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+    <main>
+        <h2>Welcome {{username | title}} خوش آمدید</h2>
+        <p>Login Successful!</p>
+        <p><a href="{% url 'logout' %}">Logout</a></p>
+        <p><a href="{% url 'create_group' %}" class="btn btn-primary">ایجاد/مدیریت گروه</a></p>
+    </main>
+{% endblock content %}

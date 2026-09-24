@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<main class="container py-4">
+    <h2>تداخل در اطلاعات</h2>
+    <p>تعداد {{ conflict_count }} دانش‌آموز وجود دارند که قبلاً در گروه دیگری ثبت شده‌اند. برای حفظ محرمانگی، جزئیات مشخص نیست.</p>
+    <form method="post">
+        {% csrf_token %}
+        <button class="btn btn-warning" type="submit">ارسال تیکت به مدیریت</button>
+        <a href="{% url 'create_group' %}" class="btn btn-secondary">بازگشت و ویرایش</a>
+    </form>
+</main>
+{% endblock content %}

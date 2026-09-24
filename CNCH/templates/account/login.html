@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Login{% endblock title %}
+{% block content %}
+    <main>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div>{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}            
+            {{ login_form.username_or_email }}
+            {{ login_form.password }}
+
+            {{ login_form.remember_me.label }}
+            {{ login_form.remember_me }}
+            <br>
+            <button type="submit">Login</button>
+        </form>
+        <p><a href="{% url 'signup' %}">Don't have an account? Sign up here.</a></p>
+        <p><a href="{% url 'forgot-password' %}">Forgot your password?</a></p>
+    </main>
+{% endblock content %}
