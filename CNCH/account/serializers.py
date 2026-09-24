@@ -22,24 +22,77 @@ class StudentSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         group = attrs["school_group"]
-        # ظرفیت گروه (حداکثر ۶ دانش‌آموز)
+        request = self.context.get("request")
         if group.students.count() >= 6:
             raise serializers.ValidationError({"school_group": "این گروه به حداکثر ظرفیت (۶ دانش‌آموز) رسیده است."})
-        # تلفن همراه تکراری
-        if User.objects.filter(phone_number=attrs["phone_number"]).exists():
-            raise serializers.ValidationError({"phone_number": "کاربری با این تلفن همراه قبلاً ثبت شده است."})
-        # کدملی تکراری
-        if User.objects.filter(national_id=attrs["national_id"]).exists():
-            raise serializers.ValidationError({"national_id": "کاربری با این کد ملی قبلاً ثبت شده است."})
+        
+        user_by_nid = User.objects.filter(national_id=attrs.get("national_id")).first()
+        user_by_phone = User.objects.filter(phone_number=attrs.get("phone_number")).first()
+
+        # بررسی اینکه آیا این رکورد متعلق به سرگروه لاگین‌شده است یا خیر
+        is_organizer = bool(
+            request and request.user.is_authenticated and (
+                request.user == user_by_nid or
+                request.user == user_by_phone or
+                (request.user.national_id and request.user.national_id == attrs.get("national_id")) or
+                (request.user.phone_number and request.user.phone_number == attrs.get("phone_number"))
+            )
+        )
+
+        if not is_organizer:
+            if user_by_phone:
+                raise serializers.ValidationError({"phone_number": "کاربری با این تلفن همراه قبلاً ثبت شده است."})
+            if user_by_nid:
+                raise serializers.ValidationError({"national_id": "کاربری با این کد ملی قبلاً ثبت شده است."})
+
         return attrs
 
     @transaction.atomic
     def create(self, validated_data):
-        user_data = {"first_name": validated_data.pop("first_name"),"last_name": validated_data.pop("last_name"),
-            "national_id": validated_data.pop("national_id"),"phone_number": validated_data.pop("phone_number"),}
+        user_data = {
+            "first_name": validated_data.pop("first_name"),
+            "last_name": validated_data.pop("last_name"),
+            "national_id": validated_data.pop("national_id"),
+            "phone_number": validated_data.pop("phone_number"),
+        }
         national_id = user_data["national_id"]
-        user = User.objects.create_user(username=national_id,email=f"{national_id}@example.com",**user_data,)
-        student = Student.objects.create(user=user, **validated_data)
+        request = self.context.get("request")
+        group = validated_data.get("school_group")
+
+        user_by_nid = User.objects.filter(national_id=national_id).first()
+        user_by_phone = User.objects.filter(phone_number=user_data["phone_number"]).first()
+
+        is_organizer = bool(
+            request and request.user.is_authenticated and (
+                request.user == user_by_nid or
+                request.user == user_by_phone or
+                (request.user.national_id and request.user.national_id == national_id) or
+                (request.user.phone_number and request.user.phone_number == user_data["phone_number"])
+            )
+        )
+
+        if is_organizer:
+            user = request.user
+            for k, v in user_data.items():
+                if v:
+                    setattr(user, k, v)
+            user.save()
+            student, _ = Student.objects.update_or_create(
+                user=user,
+                defaults={
+                    "school_group": group,
+                    "grade": validated_data.get("grade"),
+                    "major": validated_data.get("major"),
+                }
+            )
+        else:
+            email = f"{national_id}@example.com"
+            user = User.objects.create_user(
+                username=email,
+                email=email,
+                **user_data
+            )
+            student = Student.objects.create(user=user, **validated_data)
         return student
     
     @transaction.atomic

@@ -54,4 +54,4 @@ export const iranProvinces = [
 ];
 
 export const grades = ['هفتم', 'هشتم', 'نهم', 'دهم', 'یازدهم'];
-export const majors = ['ریاضی', 'تجربی', 'انسانی'];
+export const majors = ['ریاضی', 'تجربی', 'انسانی', 'متوسطه اول'];

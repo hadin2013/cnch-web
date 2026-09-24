@@ -1,4 +1,4 @@
-import { superValidate, message } from 'sveltekit-superforms';
+import { superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { fail } from '@sveltejs/kit';
 import { schoolGroupSchema } from '$lib/schemas/schoolGroup.schema';
@@ -18,69 +18,54 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	// Step 1: create the organizer's account and start the auth session
-	createAccount: async ({ request, cookies }) => {
-		const formData = await request.formData();
-		const data = {
-			email: String(formData.get('email') || '')
-				.trim()
-				.toLowerCase(),
-			password: String(formData.get('password') || ''),
-			first_name: String(formData.get('first_name') || '').trim(),
-			last_name: String(formData.get('last_name') || '').trim(),
-			phone_number: String(formData.get('phone_number') || '').trim(),
-			national_id: String(formData.get('national_id') || '').trim()
-		};
-
-		if (!data.email || !data.password) {
-			return fail(400, { error: 'ایمیل و رمز عبور الزامی است.' });
-		}
-
-		try {
-			const user = await signup(data);
-			const { access } = await login(data.email, data.password);
-			setAuthSession(cookies, access, {
-				id: user.id,
-				email: user.email,
-				name: `${user.first_name} ${user.last_name}`.trim() || user.email,
-				role: 'normal'
-			});
-			return { success: true };
-		} catch (error) {
-			const errorMessage =
-				error instanceof Error && error.message ? error.message : 'خطا در ساخت حساب کاربری';
-			return fail(500, { error: errorMessage });
-		}
-	},
-
-	// Final step: create group + students (authenticated → group is linked to the organizer)
 	submitRegistration: async ({ request, cookies }) => {
 		const formData = await request.formData();
 		const data = JSON.parse(formData.get('data') as string);
-		const token = getToken(cookies);
+		let token: string | null = null;
 
 		try {
-			// Create school group
+			// ۱. اگر اطلاعات اکانت در بسته ارسالی وجود دارد، مستقیماً حساب جدید ایجاد و لاگین می‌شود
+			if (data.accountData) {
+				const { grade, major, ...userPayload } = data.accountData;
+				try {
+					await signup(userPayload);
+				} catch (signupErr: any) {
+					console.log('Signup info:', signupErr?.message);
+				}
+				const { access } = await login(userPayload.email, userPayload.password);
+				token = access;
+				setAuthSession(cookies, access, {
+					email: userPayload.email,
+					name: `${userPayload.first_name} ${userPayload.last_name}`.trim() || userPayload.email,
+					role: 'normal'
+				});
+			} else {
+				token = getToken(cookies);
+			}
+
+			if (!token) {
+				return fail(401, { error: 'شناسه دسترسی معتبر نیست. لطفاً مجدداً اقدام کنید.' });
+			}
+
+			// ۲. ایجاد گروه مدرسه
 			const groupResponse = await createSchoolGroup(data.groupData, token);
 			const groupId = groupResponse.id;
 
-			// Create all students
-			const studentPromises = data.students.map((student: any) =>
-				createStudent(
+			// ۳. ایجاد اعضای دانش‌آموزی (سرگروه + بقیه اعضا)
+			for (const student of data.students) {
+				await createStudent(
 					{
 						...student,
 						school_group: groupId
 					},
 					token
-				)
-			);
-
-			await Promise.all(studentPromises);
+				);
+			}
 
 			return { success: true, groupId };
 		} catch (error) {
 			const errorMessage =
-				error instanceof Error && error.message ? error.message : 'خطا در ثبت اطلاعات';
+				error instanceof Error && error.message ? error.message : 'خطا در ثبت نهایی اطلاعات';
 			return fail(500, { error: errorMessage });
 		}
 	}

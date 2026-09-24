@@ -18,10 +18,12 @@
 		dataType: 'json'
 	}));
 
-	// Initialize with initialData if provided
+	// Initialize with initialData without triggering infinite effect loops
 	$effect(() => {
 		if (initialData) {
-			$form = { ...$form, ...initialData };
+			untrack(() => {
+				$form = { ...$form, ...initialData };
+			});
 		}
 	});
 
@@ -50,68 +52,62 @@
 				نام گروه <span class="text-red-500">*</span>
 			</Label>
 			<div class="relative">
-				<Building2 class="absolute right-3 top-3 size-5 text-gray-400" />
+				<Building2 class="absolute right-3 top-3 h-4 w-4 text-gray-400" />
 				<Input
 					id="group_name"
 					name="group_name"
+					placeholder="مثال: دانشمندان جوان"
 					bind:value={$form.group_name}
-					placeholder="مثال: گروه نخبگان تهران"
 					class="pr-10 text-right"
-					aria-invalid={$errors.group_name ? 'true' : undefined}
 				/>
 			</div>
 			{#if $errors.group_name}
-				<p class="text-sm text-red-500">{$errors.group_name[0]}</p>
+				<p class="text-xs text-red-500">{$errors.group_name}</p>
 			{/if}
 		</div>
 
 		<!-- Province & City -->
-		<div class="grid gap-6 md:grid-cols-2">
-			<!-- Province -->
+		<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 			<div class="space-y-2">
 				<Label for="province" class="text-right">
 					استان <span class="text-red-500">*</span>
 				</Label>
-				<Select.Root type="single" name="province" bind:value={$form.province}>
-					<Select.Trigger class="w-full text-right" aria-invalid={$errors.province ? 'true' : undefined}>
-						<MapPin class="ml-2 size-4" />
-						{selectedProvince}
+				<Select.Root
+					type="single"
+					bind:value={$form.province}
+				>
+					<Select.Trigger class="w-full text-right">
+						<span>{selectedProvince}</span>
 					</Select.Trigger>
-					<Select.Portal>
-						<Select.Content>
-							<Select.Group>
-								<Select.Label>استان ها</Select.Label>
-								{#each iranProvinces as province}
-									<Select.Item value={province}>{province}</Select.Item>
-								{/each}
-							</Select.Group>
-						</Select.Content>
-					</Select.Portal>
+					<Select.Content class="max-h-60 overflow-y-auto">
+						{#each iranProvinces as province}
+							<Select.Item value={province} label={province} class="text-right">
+								{province}
+							</Select.Item>
+						{/each}
+					</Select.Content>
 				</Select.Root>
-				<input type="hidden" name="province" bind:value={$form.province} />
 				{#if $errors.province}
-					<p class="text-sm text-red-500">{$errors.province[0]}</p>
+					<p class="text-xs text-red-500">{$errors.province}</p>
 				{/if}
 			</div>
 
-			<!-- City -->
 			<div class="space-y-2">
 				<Label for="city" class="text-right">
-					شهر <span class="text-red-500">*</span>
+					شهر/شهرستان <span class="text-red-500">*</span>
 				</Label>
 				<div class="relative">
-					<MapPin class="absolute right-3 top-3 size-5 text-gray-400" />
+					<MapPin class="absolute right-3 top-3 h-4 w-4 text-gray-400" />
 					<Input
 						id="city"
 						name="city"
+						placeholder="مثال: تهران"
 						bind:value={$form.city}
-						placeholder="نام شهر"
 						class="pr-10 text-right"
-						aria-invalid={$errors.city ? 'true' : undefined}
 					/>
 				</div>
 				{#if $errors.city}
-					<p class="text-sm text-red-500">{$errors.city[0]}</p>
+					<p class="text-xs text-red-500">{$errors.city}</p>
 				{/if}
 			</div>
 		</div>
@@ -121,53 +117,54 @@
 			<Label for="school_name" class="text-right">
 				نام مدرسه <span class="text-red-500">*</span>
 			</Label>
-			<div class="relative">
-				<Building2 class="absolute right-3 top-3 size-5 text-gray-400" />
-				<Input
-					id="school_name"
-					name="school_name"
-					bind:value={$form.school_name}
-					placeholder="مثال: دبیرستان نمونه فرزانگان"
-					class="pr-10 text-right"
-					aria-invalid={$errors.school_name ? 'true' : undefined}
-				/>
-			</div>
+			<Input
+				id="school_name"
+				name="school_name"
+				placeholder="مثال: دبیرستان شهید بهشتی"
+				bind:value={$form.school_name}
+				class="text-right"
+			/>
 			{#if $errors.school_name}
-				<p class="text-sm text-red-500">{$errors.school_name[0]}</p>
+				<p class="text-xs text-red-500">{$errors.school_name}</p>
 			{/if}
 		</div>
 
 		<!-- School Phone -->
 		<div class="space-y-2">
 			<Label for="school_phone" class="text-right">
-				شماره تلفن مدرسه <span class="text-red-500">*</span>
+				تلفن مدرسه <span class="text-red-500">*</span>
 			</Label>
 			<div class="relative">
-				<Phone class="absolute right-3 top-3 size-5 text-gray-400" />
+				<Phone class="absolute right-3 top-3 h-4 w-4 text-gray-400" />
 				<Input
 					id="school_phone"
 					name="school_phone"
+					placeholder="مثال: 02112345678"
 					bind:value={$form.school_phone}
-					placeholder="02112345678"
+					class="pr-10 text-right"
 					dir="ltr"
-					class="pr-10 text-left"
-					aria-invalid={$errors.school_phone ? 'true' : undefined}
 				/>
 			</div>
 			{#if $errors.school_phone}
-				<p class="text-sm text-red-500">{$errors.school_phone[0]}</p>
+				<p class="text-xs text-red-500">{$errors.school_phone}</p>
 			{/if}
 		</div>
 
-		<!-- Actions -->
-		<div class="flex justify-between gap-4 pt-4">
-			{#if onBack}
-				<Button type="button" variant="outline" onclick={onBack}>
-					بازگشت
-				</Button>
-			{/if}
-			<Button type="button" onclick={handleNext} class="mr-auto">
-				مرحله بعد
+		<!-- Action Buttons -->
+		<div class="flex items-center justify-between pt-4">
+			<Button
+				type="button"
+				variant="outline"
+				onclick={onBack}
+			>
+				مرحله قبل
+			</Button>
+
+			<Button
+				type="button"
+				onclick={handleNext}
+			>
+				مرحله بعد: اطلاعات دانش‌آموزان
 			</Button>
 		</div>
 	</form>

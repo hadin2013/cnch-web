@@ -1,33 +1,29 @@
 services:
   api:
     build:
-      context: ./cnch-api
-      network: host
+      context: ../CNCH
       args:
-        # Leave these blank; Compose will pull them from your environment
         HTTP_PROXY: ${HTTP_PROXY}
         HTTPS_PROXY: ${HTTPS_PROXY}
     container_name: cnch-api
+    network_mode: host
     env_file:
       - .env
     volumes:
-      # Persist the SQLite database across container restarts
       - ./db_data:/app/data
-      # Persist uploaded media files (assignments, etc.)
       - ./media_data:/app/media
     restart: unless-stopped
 
   web:
     build:
-      context: ./cnch-webapp
-      network: host
+      context: ../cnch-app
       args:
-        # Leave these blank; Compose will pull them from your environment
         HTTP_PROXY: ${HTTP_PROXY}
         HTTPS_PROXY: ${HTTPS_PROXY}
     container_name: cnch-webapp
-    ports:
-      - "127.0.0.1:3000:3000"
+    network_mode: host
     env_file:
       - .env
+    depends_on:
+      - api
     restart: unless-stopped

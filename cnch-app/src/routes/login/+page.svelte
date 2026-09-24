@@ -27,7 +27,7 @@
 		<Card.Content>
 			<form
 				method="POST"
-				action="?/default"
+				
 				use:enhance={() => {
 					isSubmitting = true;
 					return async ({ update }) => {

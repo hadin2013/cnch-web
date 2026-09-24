@@ -17,7 +17,7 @@
 		ArrowRight
 	} from 'lucide-svelte';
 
-	let { groupData, students, onBack, isSuccess = $bindable(false) } = $props();
+	let { accountData = null, groupData, students, onBack, isSuccess = $bindable(false) } = $props();
 
 	let isSubmitting = $state(false);
 	let errorMessage = $state<string | null>(null);
@@ -192,7 +192,7 @@
 				};
 			}}
 		>
-			<input type="hidden" name="data" value={JSON.stringify({ groupData, students })} />
+			<input type="hidden" name="data" value={JSON.stringify({ accountData, groupData, students })} />
 
 			<div class="flex justify-between pt-4">
 				<Button type="button" variant="outline" size="lg" onclick={onBack} disabled={isSubmitting}>
