@@ -11,3 +11,9 @@ urlpatterns = [
     path("", include(router.urls)),
 ]
 
+from .api_views import AssignmentListView, AssignmentSubmissionUploadView
+
+urlpatterns += [
+    path('assignments/', AssignmentListView.as_view(), name='assignment-list'),
+    path('assignments/<int:assignment_id>/submit/', AssignmentSubmissionUploadView.as_view(), name='assignment-submit'),
+]

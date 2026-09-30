@@ -331,3 +331,60 @@ export async function adminSetTicketResolved(
 	});
 	return response.json();
 }
+export interface LearningContentItem {
+    id: number;
+    title: string;
+    description: string;
+    content_type: 'video' | 'document' | 'link';
+    file_url: string | null;
+    video_url: string | null;
+    is_public: boolean;
+    created_at: string;
+}
+
+export interface AssignmentItem {
+    id: number;
+    title: string;
+    description: string;
+    attachment_url: string | null;
+    due_date: string | null;
+    max_score: number;
+    is_active: boolean;
+    my_submission: {
+        id: number;
+        submission_file_url: string | null;
+        comment: string;
+        status: 'submitted' | 'graded' | 'needs_revision';
+        score: number | null;
+        feedback: string;
+        submitted_at: string;
+    } | null;
+}
+
+export async function getLearningContents(token: string): Promise<LearningContentItem[]> {
+    const res = await fetch(`${API_ROOT}/api/contents/`, {
+        headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) return [];
+    return res.json();
+}
+
+export async function getAssignments(token: string): Promise<AssignmentItem[]> {
+    const res = await fetch(`${API_ROOT}/api/assignments/`, {
+        headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) return [];
+    return res.json();
+}
+
+export async function submitAssignmentFile(token: string, assignmentId: string, formData: FormData): Promise<void> {
+    const res = await fetch(`${API_ROOT}/api/assignments/${assignmentId}/submit/`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData
+    });
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'خطا در بارگذاری تکلیف');
+    }
+}

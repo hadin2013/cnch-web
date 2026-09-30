@@ -38,3 +38,23 @@ class ReviewAssignmentAdmin(admin.ModelAdmin):
     search_fields = ('task__title', 'reviewer__username')
 
 
+from django.contrib import admin
+from .models import Assignment, AssignmentSubmission
+
+@admin.register(Assignment)
+class AssignmentAdmin(admin.ModelAdmin):
+    list_display = ('title', 'due_date', 'max_score', 'is_active')
+    list_filter = ('is_active',)
+    search_fields = ('title',)
+    filter_horizontal = ('allowed_groups',)
+
+@admin.register(AssignmentSubmission)
+class AssignmentSubmissionAdmin(admin.ModelAdmin):
+    list_display = ('assignment', 'user', 'group', 'status', 'score', 'submitted_at')
+    list_filter = ('status', 'assignment')
+    search_fields = ('user__username', 'user__first_name', 'user__last_name', 'group__group_name')
+    readonly_fields = ('submitted_at',)
+    fieldsets = (
+        ("اطلاعات ارسال", {"fields": ("assignment", "user", "group", "submission_file", "comment", "submitted_at")}),
+        ("ارزیابی و نمره‌دهی", {"fields": ("status", "score", "feedback", "graded_by", "graded_at")}),
+    )

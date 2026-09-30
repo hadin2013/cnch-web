@@ -76,3 +76,31 @@ def list_normal_users(request):
     User = get_user_model()
     normals = User.objects.filter(role='normal')
     return render(request, 'content/normal_users_list.html', {'users': normals})
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from django.db.models import Q
+from .models import LearningContent
+from .serializers import LearningContentSerializer
+
+class LearningContentListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        q = Q(is_public=True)
+        group_ids = []
+        if hasattr(user, 'student_profile') and user.student_profile.school_group_id:
+            group_ids.append(user.student_profile.school_group_id)
+        if hasattr(user, 'organized_groups'):
+            group_ids.extend(user.organized_groups.values_list('id', flat=True))
+        if group_ids:
+            q |= Q(allowed_groups__id__in=group_ids)
+
+        if user.is_staff or getattr(user, 'role', '') in ['admin', 'mentor']:
+            contents = LearningContent.objects.all().distinct()
+        else:
+            contents = LearningContent.objects.filter(q).distinct()
+
+        serializer = LearningContentSerializer(contents, many=True, context={'request': request})
+        return Response(serializer.data)
