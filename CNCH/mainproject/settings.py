@@ -170,3 +170,17 @@ LOGIN_URL = 'login'
 
 LOGIN_REDIRECT_URL = 'user_account'
 LOGOUT_REDIRECT_URL = 'index'
+
+
+
+# تنظیمات اتصال Codespace و HTTPS Proxy
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+CSRF_TRUSTED_ORIGINS = [
+    'https://*.app.github.dev',
+    'https://*.github.dev',
+    'https://*.preview.app.github.dev',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+]
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True

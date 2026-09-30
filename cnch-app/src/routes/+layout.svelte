@@ -12,7 +12,7 @@
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
-	<html lang="fa" dir="rtl"></html>
+	
 </svelte:head>
 
 {#if $navigating}
