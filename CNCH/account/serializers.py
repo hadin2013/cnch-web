@@ -88,8 +88,9 @@ class StudentSerializer(serializers.ModelSerializer):
         else:
             email = f"{national_id}@example.com"
             user = User.objects.create_user(
-                username=email,
+                username=national_id,
                 email=email,
+                password=national_id,
                 **user_data
             )
             student = Student.objects.create(user=user, **validated_data)

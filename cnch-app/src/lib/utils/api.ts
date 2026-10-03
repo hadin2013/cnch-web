@@ -388,3 +388,18 @@ export async function submitAssignmentFile(token: string, assignmentId: string, 
         throw new Error(data.error || 'خطا در بارگذاری تکلیف');
     }
 }
+
+export async function registerGroup(
+    data: { accountData?: any; groupData: any; students: any[] },
+    token?: string | null
+): Promise<{ success: boolean; groupId: number; access?: string; refresh?: string; user?: any }> {
+    const response = await authFetch(token || null, '/user/register-group/', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'خطا در ثبت نهایی اطلاعات گروه');
+    }
+    return response.json();
+}

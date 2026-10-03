@@ -393,3 +393,197 @@ class SchoolGroupDashboardView(APIView):
 #     u.role = 'mentor'
 #     u.save()
 #     return redirect('user_account')
+
+
+from django.db import transaction
+from rest_framework_simplejwt.tokens import RefreshToken
+
+class GroupRegistrationView(APIView):
+    """
+    ثبت‌نام یکپارچه دو مرحله‌ای:
+    ۱. اعتبارسنجی ۱۰۰٪ داده‌ها قبل از نوشتن روی دیتابیس (بدون ساخت هیچ کاربری).
+    ۲. ذخیره تراکنشی سرگروه، مدرسه و اعضا تنها در صورت موفقیت کامل مرحله اول.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        data = request.data
+        account_data = data.get('accountData')
+        group_data = data.get('groupData')
+        students_data = data.get('students') or []
+
+        # ----------------------------------------------------
+        # فاز ۱: اعتبارسنجی پیش‌دستانه (Zero-Write Validation)
+        # ----------------------------------------------------
+        if not group_data:
+            return Response({'error': 'اطلاعات مدرسه و گروه الزامی است.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not students_data:
+            return Response({'error': 'حداقل اطلاعات یک دانش‌آموز (سرگروه) باید وارد شود.'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(students_data) > 6:
+            return Response({'error': 'حداکثر ظرفیت هر گروه ۶ دانش‌آموز است.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # ۱. اعتبارسنجی سرگروه
+        is_new_leader = not (request.user and request.user.is_authenticated)
+        l_nid = ''
+        l_email = ''
+        l_password = ''
+        l_first_name = ''
+        l_last_name = ''
+        l_phone = ''
+
+        if is_new_leader:
+            if not account_data:
+                return Response({'error': 'اطلاعات حساب کاربری سرگروه الزامی است.'}, status=status.HTTP_400_BAD_REQUEST)
+            l_nid = str(account_data.get('national_id', '')).strip()
+            l_email = str(account_data.get('email', '')).strip().lower()
+            l_password = str(account_data.get('password', ''))
+            l_first_name = str(account_data.get('first_name', '')).strip()
+            l_last_name = str(account_data.get('last_name', '')).strip()
+            l_phone = str(account_data.get('phone_number', '')).strip()
+
+            if not l_nid or len(l_nid) != 10 or not l_nid.isdigit():
+                return Response({'error': 'کد ملی سرگروه باید ۱۰ رقم باشد.'}, status=status.HTTP_400_BAD_REQUEST)
+            if not l_email or '@' not in l_email:
+                return Response({'error': 'ایمیل سرگروه نامعتبر است.'}, status=status.HTTP_400_BAD_REQUEST)
+            if not l_password or len(l_password) < 6:
+                return Response({'error': 'رمز عبور سرگروه باید حداقل ۶ کاراکتر باشد.'}, status=status.HTTP_400_BAD_REQUEST)
+            if not l_phone or len(l_phone) < 10:
+                return Response({'error': 'شماره موبایل سرگروه نامعتبر است.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # بررسی تکراری نبودن سرگروه در دیتابیس
+            if User.objects.filter(Q(national_id=l_nid) | Q(username=l_nid)).exists():
+                return Response({'error': f'کاربری با کد ملی {l_nid} قبلاً در سامانه ثبت شده است.'}, status=status.HTTP_400_BAD_REQUEST)
+            if User.objects.filter(email__iexact=l_email).exists():
+                return Response({'error': f'کاربری با ایمیل {l_email} قبلاً ثبت شده است.'}, status=status.HTTP_400_BAD_REQUEST)
+            if User.objects.filter(phone_number=l_phone).exists():
+                return Response({'error': f'کاربری با شماره موبایل {l_phone} قبلاً ثبت شده است.'}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            leader_user = request.user
+            l_nid = str(leader_user.national_id or leader_user.username).strip()
+            l_phone = str(leader_user.phone_number or '').strip()
+
+        # ۲. اعتبارسنجی تمامی اعضا (تکراری نبودن در فرم و دیتابیس)
+        seen_nids = set()
+        seen_phones = set()
+        if l_nid:
+            seen_nids.add(l_nid)
+        if l_phone:
+            seen_phones.add(l_phone)
+
+        for idx, s in enumerate(students_data):
+            s_nid = str(s.get('national_id', '')).strip()
+            s_first = str(s.get('first_name', '')).strip()
+            s_last = str(s.get('last_name', '')).strip()
+            s_phone = str(s.get('phone_number', '')).strip()
+            s_name = f"{s_first} {s_last}".strip() or f"عضو شماره {idx + 1}"
+
+            if not s_nid or len(s_nid) != 10 or not s_nid.isdigit():
+                return Response({'error': f'کد ملی {s_name} باید ۱۰ رقم باشد.'}, status=status.HTTP_400_BAD_REQUEST)
+            if not s_phone or len(s_phone) < 10:
+                return Response({'error': f'شماره موبایل {s_name} نامعتبر است.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            is_leader = (idx == 0 or s_nid == l_nid)
+
+            if not is_leader:
+                # تکراری بودن در همین فرم
+                if s_nid in seen_nids:
+                    return Response({'error': f'کد ملی {s_nid} ({s_name}) در فرم تکراری وارد شده است.'}, status=status.HTTP_400_BAD_REQUEST)
+                if s_phone in seen_phones:
+                    return Response({'error': f'شماره موبایل {s_phone} ({s_name}) در فرم تکراری وارد شده است.'}, status=status.HTTP_400_BAD_REQUEST)
+
+                # تکراری بودن در کل دیتابیس
+                if User.objects.filter(Q(national_id=s_nid) | Q(username=s_nid)).exists():
+                    return Response({'error': f'دانش‌آموزی با کد ملی {s_nid} ({s_name}) قبلاً در سامانه ثبت شده است.'}, status=status.HTTP_400_BAD_REQUEST)
+                if User.objects.filter(phone_number=s_phone).exists():
+                    return Response({'error': f'شماره موبایل {s_phone} ({s_name}) قبلاً در سامانه ثبت شده است.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            seen_nids.add(s_nid)
+            seen_phones.add(s_phone)
+
+        # ۳. اعتبارسنجی مقادیر مدرسه
+        g_name = str(group_data.get('group_name', '')).strip()
+        g_prov = str(group_data.get('province', '')).strip()
+        g_city = str(group_data.get('city', '')).strip()
+        g_school = str(group_data.get('school_name', '')).strip()
+        g_phone = str(group_data.get('school_phone', '')).strip()
+
+        if not g_name or not g_school:
+            return Response({'error': 'نام گروه و نام مدرسه الزامی است.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # ----------------------------------------------------
+        # فاز ۲: ذخیره‌سازی قطعی و یکپارچه در دیتابیس
+        # ----------------------------------------------------
+        with transaction.atomic():
+            if is_new_leader:
+                leader_user = User.objects.create_user(
+                    username=l_nid,
+                    national_id=l_nid,
+                    email=l_email,
+                    password=l_password,
+                    first_name=l_first_name,
+                    last_name=l_last_name,
+                    phone_number=l_phone,
+                    role='normal'
+                )
+
+            group = SchoolGroup.objects.create(
+                group_name=g_name,
+                province=g_prov,
+                city=g_city,
+                school_name=g_school,
+                school_phone=g_phone,
+                organizer=leader_user,
+                finalized=True
+            )
+
+            for idx, s in enumerate(students_data):
+                s_nid = str(s.get('national_id', '')).strip()
+                s_first = str(s.get('first_name', '')).strip()
+                s_last = str(s.get('last_name', '')).strip()
+                s_phone = str(s.get('phone_number', '')).strip()
+                s_grade = str(s.get('grade', '')).strip()
+                s_major = str(s.get('major', '')).strip()
+
+                is_leader = (idx == 0 or s_nid == l_nid)
+                if is_leader:
+                    u = leader_user
+                    if s_first: u.first_name = s_first
+                    if s_last: u.last_name = s_last
+                    if s_phone: u.phone_number = s_phone
+                    u.save()
+                else:
+                    fake_email = f"{s_nid}@example.com"
+                    u = User.objects.create_user(
+                        username=s_nid,
+                        national_id=s_nid,
+                        email=fake_email,
+                        password=s_nid,
+                        first_name=s_first,
+                        last_name=s_last,
+                        phone_number=s_phone,
+                        role='normal'
+                    )
+
+                Student.objects.create(
+                    user=u,
+                    school_group=group,
+                    grade=s_grade,
+                    major=s_major
+                )
+
+        refresh = RefreshToken.for_user(leader_user)
+        return Response({
+            'success': True,
+            'groupId': group.id,
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user': {
+                'id': leader_user.id,
+                'email': leader_user.email,
+                'username': leader_user.username,
+                'national_id': leader_user.national_id,
+                'first_name': leader_user.first_name,
+                'last_name': leader_user.last_name,
+                'role': leader_user.role
+            }
+        }, status=status.HTTP_201_CREATED)

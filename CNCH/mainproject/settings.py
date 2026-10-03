@@ -184,3 +184,8 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
+
+AUTHENTICATION_BACKENDS = [
+    'account.auth_backends.NationalIdOrEmailBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]

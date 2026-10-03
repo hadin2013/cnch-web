@@ -11,6 +11,7 @@ urlpatterns = [
     # students & groups (competition registration)
     path('students/', views.StudentCreateView.as_view(), name='student-create'),
     path('students/<int:pk>/', views.StudentUpdateView.as_view(), name='student-update'),
+    path('register-group/', views.GroupRegistrationView.as_view(), name='register-group'),
     path('groups/', views.SchoolGroupCreateView.as_view(), name='group-create'),
     path('groups/<int:pk>/', views.SchoolGroupDashboardView.as_view(), name='group-dashboard'),
 

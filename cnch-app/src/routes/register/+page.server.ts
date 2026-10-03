@@ -3,7 +3,7 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { fail } from '@sveltejs/kit';
 import { schoolGroupSchema } from '$lib/schemas/schoolGroup.schema';
 import { studentSchema } from '$lib/schemas/student.schema';
-import { createSchoolGroup, createStudent, signup, login } from '$lib/utils/api';
+import { registerGroup } from '$lib/utils/api';
 import { setAuthSession, getToken } from '$lib/utils/auth';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -21,52 +21,25 @@ export const actions: Actions = {
 	submitRegistration: async ({ request, cookies }) => {
 		const formData = await request.formData();
 		const data = JSON.parse(formData.get('data') as string);
-		let token: string | null = null;
+		const existingToken = getToken(cookies);
 
 		try {
-			// ۱. اگر اطلاعات اکانت در بسته ارسالی وجود دارد، مستقیماً حساب جدید ایجاد و لاگین می‌شود
-			if (data.accountData) {
-				const { grade, major, ...userPayload } = data.accountData;
-				try {
-					await signup(userPayload);
-				} catch (signupErr: any) {
-					console.log('Signup info:', signupErr?.message);
-				}
-				const { access } = await login(userPayload.email, userPayload.password);
-				token = access;
-				setAuthSession(cookies, access, {
-					email: userPayload.email,
-					name: `${userPayload.first_name} ${userPayload.last_name}`.trim() || userPayload.email,
-					role: 'normal'
+			const result = await registerGroup(data, existingToken);
+
+			if (result.access && result.user) {
+				setAuthSession(cookies, result.access, {
+					id: result.user.id,
+					email: result.user.email,
+					name: `${result.user.first_name || ''} ${result.user.last_name || ''}`.trim() || result.user.username,
+					role: result.user.role || 'normal'
 				});
-			} else {
-				token = getToken(cookies);
 			}
 
-			if (!token) {
-				return fail(401, { error: 'شناسه دسترسی معتبر نیست. لطفاً مجدداً اقدام کنید.' });
-			}
-
-			// ۲. ایجاد گروه مدرسه
-			const groupResponse = await createSchoolGroup(data.groupData, token);
-			const groupId = groupResponse.id;
-
-			// ۳. ایجاد اعضای دانش‌آموزی (سرگروه + بقیه اعضا)
-			for (const student of data.students) {
-				await createStudent(
-					{
-						...student,
-						school_group: groupId
-					},
-					token
-				);
-			}
-
-			return { success: true, groupId };
+			return { success: true, groupId: result.groupId };
 		} catch (error) {
 			const errorMessage =
 				error instanceof Error && error.message ? error.message : 'خطا در ثبت نهایی اطلاعات';
-			return fail(500, { error: errorMessage });
+			return fail(400, { error: errorMessage });
 		}
 	}
 };

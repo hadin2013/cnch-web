@@ -38,14 +38,14 @@
 				class="space-y-4"
 			>
 				<div class="space-y-2">
-					<Label.Root for="email">ایمیل</Label.Root>
+					<Label.Root for="username">کد ملی یا ایمیل</Label.Root>
 					<div class="relative">
 						<Mail class="absolute top-1/2 right-3 size-4 -translate-y-1/2 text-gray-400" />
 						<Input.Root
-							id="email"
-							name="email"
-							type="email"
-							placeholder="you@example.com"
+							id="username"
+							name="username"
+							type="text"
+							placeholder="کد ملی ۱۰ رقمی یا ایمیل"
 							dir="ltr"
 							class="pr-10"
 							required
